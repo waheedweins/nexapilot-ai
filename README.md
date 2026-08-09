@@ -1,1 +1,0 @@
-# nexapilot-ai
