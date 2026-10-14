@@ -4,10 +4,10 @@ Uses LangChain with Gemini for live scoring when an API key is present, falling 
 to the deterministic heuristic for tests and CI/CD.
 """
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage
 from app.agents.base import GraphState, log_step
 from app.config import get_settings
+from langchain_core.messages import HumanMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 name = "lead_agent"
 
@@ -46,7 +46,7 @@ async def _score_with_llm(payload: dict, research_notes: list[dict]) -> tuple[st
 
             return score, response.content
             
-        except Exception as e:
+        except Exception:
             # Fall back to heuristic if API call or execution fails
             pass
 
