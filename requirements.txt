@@ -4,9 +4,11 @@ pydantic==2.9.2
 pydantic-settings==2.5.2
 python-dotenv==1.0.1
 
-# Orchestration
+# Orchestration & LLM
+langchain==0.3.0
 langgraph==0.2.28
 langchain-core==0.3.6
+langchain-google-genai==2.0.0
 
 # Database
 sqlalchemy[asyncio]==2.0.35
