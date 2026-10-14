@@ -4,10 +4,11 @@ Uses LangChain with Gemini for live scoring when an API key is present, falling 
 to the deterministic heuristic for tests and CI/CD.
 """
 
-from app.agents.base import GraphState, log_step
-from app.config import get_settings
 from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+from app.agents.base import GraphState, log_step
+from app.config import get_settings
 
 name = "lead_agent"
 
