@@ -4,12 +4,13 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, require_api_key
+from app.api.deps import get_db, verify_auth0_token
+from app.core.guardrails import validate_input_guardrail
 from app.graph.orchestrator import run_orchestrator
 from app.logging_config import get_logger
 from app.memory import session_store
 
-router = APIRouter(prefix="/v1/agents", tags=["agents"], dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/v1/agents", tags=["agents"], dependencies=[Depends(verify_auth0_token)])
 logger = get_logger(__name__)
 
 
@@ -33,8 +34,17 @@ class InvokeResponse(BaseModel):
 
 
 @router.post("/invoke", response_model=InvokeResponse)
-async def invoke_agent(body: InvokeRequest, db: AsyncSession = Depends(get_db)) -> InvokeResponse:
+async def invoke_agent(
+    body: InvokeRequest, 
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_auth0_token)
+) -> InvokeResponse:
     """Run the LangGraph orchestrator for a given task and persist the session."""
+    
+    # Validate payload against prompt injection and malicious input guardrails
+    await validate_input_guardrail(body.payload)
+
+    user_id = token_payload.get("sub")
     session = await session_store.create_session(
         db, task_type=body.task_type, initial_state=body.payload
     )
@@ -46,7 +56,7 @@ async def invoke_agent(body: InvokeRequest, db: AsyncSession = Depends(get_db)) 
         "log": [],
     }
 
-    logger.info("agent_invoke_start", session_id=str(session.id), task_type=body.task_type)
+    logger.info("agent_invoke_start", session_id=str(session.id), user_id=user_id, task_type=body.task_type)
     result_state = await run_orchestrator(initial_state)
     logger.info("agent_invoke_complete", session_id=str(session.id))
 
