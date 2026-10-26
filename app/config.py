@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     n8n_webhook_url: str = ""
     n8n_webhook_secret: str = "change-me-webhook-secret"
 
+    # --- Auth0 OIDC Settings Added ---
+    auth0_domain: str = ""
+    auth0_audience: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.environment.lower() == "production"
