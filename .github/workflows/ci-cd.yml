@@ -41,6 +41,9 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://nexapilot:nexapilot@localhost:5432/nexapilot_test
       API_KEY: test-api-key
+      # --- ADDED FOR AUTH0 TESTS ---
+      AUTH0_DOMAIN: test-tenant.us.auth0.com
+      AUTH0_AUDIENCE: https://api.nexapilot.ai
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
