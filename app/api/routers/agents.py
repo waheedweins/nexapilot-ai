@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, verify_auth0_token
 from app.core.guardrails import validate_input_guardrail
 from app.core.output_guardrails import walk_and_sanitize
+from app.core.cache import get_cached_response, set_cached_response
 from app.graph.orchestrator import run_orchestrator
 from app.logging_config import get_logger
 from app.memory import session_store
@@ -40,10 +41,16 @@ async def invoke_agent(
     db: AsyncSession = Depends(get_db),
     token_payload: dict = Depends(verify_auth0_token)
 ) -> InvokeResponse:
-    """Run the LangGraph orchestrator for a given task, enforce security guards, and persist the session."""
+    """Run the LangGraph orchestrator with semantic caching, security guards, and persistence."""
     
     # 1. Validate payload against prompt injection and malicious input guardrails (Jev)
     await validate_input_guardrail(body.payload)
+
+    # 2. Check Cache for Repetitive Queries (Saves tokens & execution time!)
+    cached_data = await get_cached_response(db, body.task_type, body.payload)
+    if cached_data:
+        logger.info("returning_cached_agent_response", task_type=body.task_type)
+        return InvokeResponse(**cached_data)
 
     user_id = token_payload.get("sub")
     session = await session_store.create_session(
@@ -66,7 +73,7 @@ async def invoke_agent(
         db, session.id, role="agent", content=str(result_state), agent_name="orchestrator"
     )
 
-    # 2. Extract result fields
+    # 3. Extract result fields
     raw_response = {
         "session_id": str(session.id),
         "task_type": body.task_type,
@@ -77,8 +84,11 @@ async def invoke_agent(
         "log": result_state.get("log", []),
     }
 
-    # 3. Apply Output Guardrails to sanitize PII and sensitive data before returning
+    # 4. Apply Output Guardrails to sanitize PII and sensitive data before returning
     safe_response = walk_and_sanitize(raw_response)
+
+    # 5. Store result in cache for future identical queries
+    await set_cached_response(db, body.task_type, body.payload, safe_response)
 
     return InvokeResponse(**safe_response)
 
