@@ -41,9 +41,11 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://nexapilot:nexapilot@localhost:5432/nexapilot_test
       API_KEY: test-api-key
-      # --- ADDED FOR AUTH0 TESTS ---
+      # --- AUTH0 SECURITY CONFIG ---
       AUTH0_DOMAIN: test-tenant.us.auth0.com
       AUTH0_AUDIENCE: https://api.nexapilot.ai
+      # --- JEV / TYPESAFE GUARDRAIL CONFIG ---
+      TYPESAFE_API_KEY: test-typesafe-api-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -51,7 +53,13 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt -r requirements-dev.txt
-      - run: pytest -v
+      
+      # --- RUN ALEMBIC MIGRATIONS BEFORE TESTS ---
+      - name: Run Database Migrations
+        run: alembic upgrade head
+
+      - name: Run Tests
+        run: pytest -v
 
   build-and-push:
     runs-on: ubuntu-latest
