@@ -1,9 +1,9 @@
-"""Core ORM models: agent sessions/state and lead records."""
+"""Core ORM models: agent sessions/state, lead records, and prompt caches."""
 
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -65,3 +65,18 @@ class Lead(Base):
     reasoning: Mapped[str | None] = mapped_column(Text, nullable=True)
     enrichment: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PromptCache(Base):
+    """Cached agent responses to eliminate redundant LLM API calls and save tokens."""
+
+    __tablename__ = "prompt_caches"
+
+    prompt_hash: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    task_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    response_data: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_task_prompt_hash", "task_type", "prompt_hash"),
+    )
