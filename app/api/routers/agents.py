@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db, verify_auth0_token
 from app.core.guardrails import validate_input_guardrail
+from app.core.output_guardrails import walk_and_sanitize
 from app.graph.orchestrator import run_orchestrator
 from app.logging_config import get_logger
 from app.memory import session_store
@@ -39,9 +40,9 @@ async def invoke_agent(
     db: AsyncSession = Depends(get_db),
     token_payload: dict = Depends(verify_auth0_token)
 ) -> InvokeResponse:
-    """Run the LangGraph orchestrator for a given task and persist the session."""
+    """Run the LangGraph orchestrator for a given task, enforce security guards, and persist the session."""
     
-    # Validate payload against prompt injection and malicious input guardrails
+    # 1. Validate payload against prompt injection and malicious input guardrails (Jev)
     await validate_input_guardrail(body.payload)
 
     user_id = token_payload.get("sub")
@@ -65,15 +66,21 @@ async def invoke_agent(
         db, session.id, role="agent", content=str(result_state), agent_name="orchestrator"
     )
 
-    return InvokeResponse(
-        session_id=str(session.id),
-        task_type=body.task_type,
-        research_notes=result_state.get("research_notes", []),
-        lead_score=result_state.get("lead_score"),
-        lead_reasoning=result_state.get("lead_reasoning"),
-        ops_result=result_state.get("ops_result"),
-        log=result_state.get("log", []),
-    )
+    # 2. Extract result fields
+    raw_response = {
+        "session_id": str(session.id),
+        "task_type": body.task_type,
+        "research_notes": result_state.get("research_notes", []),
+        "lead_score": result_state.get("lead_score"),
+        "lead_reasoning": result_state.get("lead_reasoning"),
+        "ops_result": result_state.get("ops_result"),
+        "log": result_state.get("log", []),
+    }
+
+    # 3. Apply Output Guardrails to sanitize PII and sensitive data before returning
+    safe_response = walk_and_sanitize(raw_response)
+
+    return InvokeResponse(**safe_response)
 
 
 @router.get("/sessions/{session_id}")
@@ -81,9 +88,13 @@ async def get_session(session_id: uuid.UUID, db: AsyncSession = Depends(get_db))
     session = await session_store.get_session(db, session_id)
     if session is None:
         return {"error": "not_found"}
+    
+    # Also sanitize session state if retrieved directly
+    safe_state = walk_and_sanitize(session.state)
+    
     return {
         "id": str(session.id),
         "task_type": session.task_type,
         "status": session.status,
-        "state": session.state,
+        "state": safe_state,
     }
