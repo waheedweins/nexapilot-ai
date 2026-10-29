@@ -8,6 +8,7 @@ from app.api.deps import get_db, verify_auth0_token
 from app.core.guardrails import validate_input_guardrail
 from app.core.output_guardrails import walk_and_sanitize
 from app.core.cache import get_cached_response, set_cached_response
+from app.core.lead_intent import classify_lead_intent
 from app.graph.orchestrator import run_orchestrator
 from app.logging_config import get_logger
 from app.memory import session_store
@@ -41,16 +42,22 @@ async def invoke_agent(
     db: AsyncSession = Depends(get_db),
     token_payload: dict = Depends(verify_auth0_token)
 ) -> InvokeResponse:
-    """Run the LangGraph orchestrator with semantic caching, security guards, and persistence."""
+    """Run lead orchestrator with Jev intent routing, token caching, and security guards."""
     
     # 1. Validate payload against prompt injection and malicious input guardrails (Jev)
     await validate_input_guardrail(body.payload)
 
-    # 2. Check Cache for Repetitive Queries (Saves tokens & execution time!)
-    cached_data = await get_cached_response(db, body.task_type, body.payload)
-    if cached_data:
-        logger.info("returning_cached_agent_response", task_type=body.task_type)
-        return InvokeResponse(**cached_data)
+    # 2. Classify Lead Intent (Check if it needs live external research or can use cache)
+    execution_intent = await classify_lead_intent(body.task_type, body.payload)
+
+    # 3. Check Cache ONLY if it's a standard operational or cached task
+    if execution_intent == "cached_operations":
+        cached_data = await get_cached_response(db, body.task_type, body.payload)
+        if cached_data:
+            logger.info("returning_cached_lead_response", task_type=body.task_type)
+            return InvokeResponse(**cached_data)
+    else:
+        logger.info("bypassing_cache_for_live_lead_research", task_type=body.task_type)
 
     user_id = token_payload.get("sub")
     session = await session_store.create_session(
@@ -73,7 +80,7 @@ async def invoke_agent(
         db, session.id, role="agent", content=str(result_state), agent_name="orchestrator"
     )
 
-    # 3. Extract result fields
+    # 4. Extract result fields
     raw_response = {
         "session_id": str(session.id),
         "task_type": body.task_type,
@@ -84,11 +91,12 @@ async def invoke_agent(
         "log": result_state.get("log", []),
     }
 
-    # 4. Apply Output Guardrails to sanitize PII and sensitive data before returning
+    # 5. Apply Output Guardrails to sanitize PII and sensitive data before returning
     safe_response = walk_and_sanitize(raw_response)
 
-    # 5. Store result in cache for future identical queries
-    await set_cached_response(db, body.task_type, body.payload, safe_response)
+    # 6. Store result in cache ONLY if it was a cacheable operational task
+    if execution_intent == "cached_operations":
+        await set_cached_response(db, body.task_type, body.payload, safe_response)
 
     return InvokeResponse(**safe_response)
 
