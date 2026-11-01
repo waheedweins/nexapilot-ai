@@ -1,14 +1,12 @@
 """Lead Agent — scores and qualifies a lead using research notes.
 
-Uses LangChain with Gemini for live scoring when an API key is present, falling back 
-to the deterministic heuristic for tests and CI/CD.
+Uses the centralized LLM fallback wrapper (Gemini Flash with automatic fallbacks)
+when an API key is present, falling back to the deterministic heuristic for tests and CI/CD.
 """
-
-from langchain_core.messages import HumanMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.agents.base import GraphState, log_step
 from app.config import get_settings
+from app.core.llm import call_lite_llm
 
 name = "lead_agent"
 
@@ -16,16 +14,9 @@ name = "lead_agent"
 async def _score_with_llm(payload: dict, research_notes: list[dict]) -> tuple[str, str]:
     settings = get_settings()
 
-    # Use LangChain's ChatGoogleGenerativeAI if API key is configured
+    # Use the centralized resilient LLM client if API key is configured
     if settings.gemini_api_key:
         try:
-            # Initialize LangChain's Gemini chat model wrapper
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=settings.gemini_api_key,
-                temperature=0.1
-            )
-            
             prompt = f"""
             Analyze the following business lead and research notes. 
             Classify the lead score strictly as 'hot', 'warm', or 'cold'.
@@ -34,10 +25,11 @@ async def _score_with_llm(payload: dict, research_notes: list[dict]) -> tuple[st
             Payload: {payload}
             Research Notes: {research_notes}
             """
+            system_prompt = "You are an expert AI Lead Qualification Agent."
 
-            # Asynchronously invoke the LangChain model
-            response = await llm.ainvoke([HumanMessage(content=prompt)])
-            response_text = response.content.strip().lower()
+            # Asynchronously call the centralized Lite LLM with fallback support
+            response_content = await call_lite_llm(prompt, system_instruction=system_prompt)
+            response_text = response_content.strip().lower()
             
             score = "warm"
             if "hot" in response_text[:20]:
@@ -45,10 +37,10 @@ async def _score_with_llm(payload: dict, research_notes: list[dict]) -> tuple[st
             elif "cold" in response_text[:20]:
                 score = "cold"
 
-            return score, response.content
+            return score, response_content
             
         except Exception:
-            # Fall back to heuristic if API call or execution fails
+            # Fall back to heuristic if execution fails
             pass
 
     # Deterministic fallback heuristic (used in tests / when no key is set)
