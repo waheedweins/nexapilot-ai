@@ -1,4 +1,3 @@
-```markdown
 # NexaPilot AI
 
 **AI Operations Platform for Automating Business Workflows**
