@@ -30,9 +30,15 @@ class Settings(BaseSettings):
     n8n_webhook_url: str = ""
     n8n_webhook_secret: str = "change-me-webhook-secret"
 
-    # --- Auth0 OIDC Settings Added ---
+    # --- Auth0 OIDC Settings ---
     auth0_domain: str = ""
     auth0_audience: str = ""
+
+    # --- LangSmith Telemetry Settings ---
+    langsmith_tracing: bool = True
+    langsmith_endpoint: str = "https://api.smith.langchain.com"
+    langsmith_api_key: str = ""
+    langsmith_project: str = "nexapilot-ai"
 
     @property
     def is_production(self) -> bool:
