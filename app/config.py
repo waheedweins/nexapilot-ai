@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     langsmith_endpoint: str = "https://api.smith.langchain.com"
     langsmith_api_key: str = ""
     langsmith_project: str = "nexapilot-ai"
+    redis_url: str = "redis://localhost:6379"
 
     @property
     def is_production(self) -> bool:
