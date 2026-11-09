@@ -1,5 +1,6 @@
 """NexaPilot AI — FastAPI application factory."""
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,9 +14,23 @@ configure_logging()
 logger = get_logger(__name__)
 
 
+def setup_langsmith_tracing() -> None:
+    """Activates LangSmith tracing using application settings."""
+    settings = get_settings()
+    if settings.langsmith_api_key:
+        os.environ["LANGSMITH_TRACING"] = str(settings.langsmith_tracing).lower()
+        os.environ["LANGSMITH_ENDPOINT"] = settings.langsmith_endpoint
+        os.environ["LANGSMITH_API_KEY"] = settings.langsmith_api_key
+        os.environ["LANGSMITH_PROJECT"] = settings.langsmith_project
+        logger.info("langsmith_tracing_initialized", project=settings.langsmith_project)
+    else:
+        logger.warning("langsmith_api_key_missing_tracing_disabled")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    setup_langsmith_tracing()
     logger.info("startup", app=settings.app_name, environment=settings.environment)
     yield
     logger.info("shutdown")
