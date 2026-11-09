@@ -3,6 +3,8 @@
 import os
 from contextlib import asynccontextmanager
 
+from arq import create_pool
+from arq.connections import RedisSettings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -31,8 +33,23 @@ def setup_langsmith_tracing() -> None:
 async def lifespan(app: FastAPI):
     settings = get_settings()
     setup_langsmith_tracing()
+
+    # Initialize ARQ Redis Pool for background workers
+    try:
+        app.state.arq_pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+        logger.info("redis_arq_pool_initialized", redis_url=settings.redis_url)
+    except Exception as e:
+        logger.error("redis_arq_pool_initialization_failed", error=str(e))
+        app.state.arq_pool = None
+
     logger.info("startup", app=settings.app_name, environment=settings.environment)
     yield
+
+    # Close ARQ Redis Pool on shutdown
+    if getattr(app.state, "arq_pool", None):
+        await app.state.arq_pool.close()
+        logger.info("redis_arq_pool_closed")
+
     logger.info("shutdown")
 
 
