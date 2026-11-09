@@ -1,8 +1,9 @@
+```markdown
 # NexaPilot AI
 
 **AI Operations Platform for Automating Business Workflows**
 
-A production-style multi-agent backend featuring FastAPI, a LangGraph orchestrator, async PostgreSQL persistence, Jev security and intent gateways, prompt caching, PII redaction, LangSmith tracing, and Dockerized CI/CD publishing to GitHub Packages (`ghcr.io`).
+A production-style multi-agent backend featuring FastAPI, a LangGraph orchestrator, async PostgreSQL persistence, Jev security and intent gateways, prompt caching, PII redaction, LangSmith tracing, Apollo.io firmographic enrichment, and Dockerized CI/CD publishing to GitHub Packages (`ghcr.io`).
 
 ```text
 User → Auth0 / FastAPI (Jev Input Guardrail) → Intent Router (Cache vs Live) → LangGraph Orchestrator → { Research | Lead | Ops } Agent → PII Sanitizer → Postgres → n8n → Gmail / Slack / APIs
@@ -48,18 +49,19 @@ nexapilot-ai/
 │   │   └── orchestrator.py  # LangGraph StateGraph wiring the 3 agents
 │   ├── agents/
 │   │   ├── base.py          # Shared graph state TypedDict & protocol
-│   │   ├── research_agent.py# External information gathering (Tavily web search)
+│   │   ├── research_agent.py# External information gathering (Tavily & Apollo.io tools)
 │   │   ├── lead_agent.py    # B2B lead scoring & qualification (Gemini + fallbacks)
 │   │   └── ops_agent.py     # Automated execution & Human-in-the-Loop safety gate
 │   ├── tools/
-│   │   └── web_search.py    # Pluggable search tool (Tavily-compatible interface)
+│   │   ├── web_search.py    # Pluggable search tool (Tavily-compatible interface)
+│   │   └── apollo.py        # Professional B2B firmographic & enrichment client
 │   ├── memory/
 │   │   └── session_store.py # Session state & message history persisted to Postgres
 │   └── database/
 │       ├── session.py       # Async SQLAlchemy engine & session factory
 │       └── models.py        # ORM models (AgentSession, SessionMessage, Lead, PromptCache)
 ├── alembic/                 # Database migrations
-├── tests/                   # Automated unit & API test suite
+├── tests/                   # Automated unit, API & AI eval test suite
 ├── .github/workflows/ci-cd.yml
 ├── Dockerfile
 ├── docker-compose.yml
@@ -140,7 +142,8 @@ docker pull ghcr.io/<owner>/nexapilot-ai:latest
 * [x] Phase 4: Auth0 OIDC security, Jev input guardrails, and PII output redaction
 * [x] Phase 5: Centralized LLM gateway with LangChain `.with_fallbacks()` resilience
 * [x] Phase 6: Human-in-the-Loop (HITL) safety allowlist and n8n webhook dispatcher
-* [ ] Phase 7: Qdrant vector store RAG integration for research policies & LangSmith telemetry dashboard
+* [x] Phase 7: LangSmith tracing instrumentation & Apollo.io firmographic enrichment tools
+* [ ] Phase 8: Qdrant vector store RAG integration for research policies & automated AI evaluation pipelines
 
 ```
 
