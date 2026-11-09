@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     openai_api_key: str = ""
     tavily_api_key: str = ""
+    apollo_api_key: str = ""  # Added for professional B2B firmographic enrichment
 
     n8n_webhook_url: str = ""
     n8n_webhook_secret: str = "change-me-webhook-secret"
