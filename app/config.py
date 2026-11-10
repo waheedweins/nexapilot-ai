@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     langsmith_api_key: str = ""
     langsmith_project: str = "nexapilot-ai"
     redis_url: str = "redis://localhost:6379"
+    # --- Qdrant Settings
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str = ""
 
     @property
     def is_production(self) -> bool:
