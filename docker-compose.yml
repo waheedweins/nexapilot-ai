@@ -1,6 +1,9 @@
+version: "3.8"
+
 services:
   db:
     image: postgres:16-alpine
+    container_name: nexapilot_db
     environment:
       POSTGRES_USER: nexapilot
       POSTGRES_PASSWORD: nexapilot
@@ -15,20 +18,72 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: nexapilot_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: nexapilot_qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   app:
     build: .
+    container_name: nexapilot_app
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://nexapilot:nexapilot@db:5432/nexapilot
+      - DATABASE_URL=postgresql+asyncpg://nexapilot:nexapilot@db:5432/nexapilot
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=http://qdrant:6333
     ports:
       - "8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - ./app:/app/app
 
+  worker:
+    build: .
+    container_name: nexapilot_worker
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://nexapilot:nexapilot@db:5432/nexapilot
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=http://qdrant:6333
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+    command: arq app.workers.arq_worker.WorkerSettings
+
 volumes:
   nexapilot_pgdata:
+  qdrant_data:
