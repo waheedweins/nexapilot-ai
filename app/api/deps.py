@@ -1,9 +1,9 @@
 """Shared FastAPI dependencies: Auth0 OIDC verification, API-key auth, and DB session re-export."""
 
-import httpx
 from fastapi import Depends, Header, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
+import httpx
 
 from app.config import get_settings
 from app.database.session import get_db  # noqa: F401 (re-exported for routers)
@@ -70,4 +70,4 @@ async def verify_auth0_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid token credentials: {str(e)}",
-        )
+        ) from e
