@@ -1,9 +1,10 @@
 """tests/test_lead_evals.py — Automated AI Evaluation Harness using DeepEval & LangChain"""
 
+import pytest
+
 from deepeval import assert_test
 from deepeval.metrics import AnswerRelevancyMetric, HallucinationMetric
 from deepeval.test_case import LLMTestCase
-import pytest
 
 from app.agents.lead_agent import _score_with_llm
 
