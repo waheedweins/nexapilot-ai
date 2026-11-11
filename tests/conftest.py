@@ -11,8 +11,7 @@ import sys
 import types
 
 # --- LANGCHAIN 0.3.x DEEPEVAL PATCH ---
-# DeepEval relies on 'langchain.schema' which was removed in LangChain 0.3.0.
-# We inject a fake module here BEFORE importing our app to prevent ModuleNotFoundErrors.
+import langchain
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langchain_core.documents import Document
 from langchain_core.outputs import Generation, LLMResult
@@ -26,7 +25,10 @@ mock_schema.Document = Document
 mock_schema.Generation = Generation
 mock_schema.LLMResult = LLMResult
 
+# 1. Register in sys.modules for standard imports
 sys.modules["langchain.schema"] = mock_schema
+# 2. Bind to the langchain package for 'from parent import child' syntax
+langchain.schema = mock_schema
 # --------------------------------------
 
 # Set up test environment variables
