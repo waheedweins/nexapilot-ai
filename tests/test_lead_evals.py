@@ -1,24 +1,31 @@
 """tests/test_lead_evals.py — Automated AI Evaluation Harness using DeepEval & LangChain"""
 
-import pytest
 from deepeval import assert_test
+from deepeval.metrics import AnswerRelevancyMetric, HallucinationMetric
 from deepeval.test_case import LLMTestCase
-from deepeval.metrics import HallucinationMetric, AnswerRelevancyMetric
+import pytest
+
 from app.agents.lead_agent import _score_with_llm
 
 
 @pytest.mark.asyncio
 async def test_lead_agent_scoring_faithfulness():
-    """EVAL: Ensures the lead agent's reasoning is faithful to research notes and avoids hallucination."""
-    
+    """EVAL: Ensures the lead agent's reasoning is faithful to research notes
+
+    and avoids hallucination.
+    """
+
     # 1. Mock inputs & grounded research notes
-    payload = {"company_name": "SolarTech Pakistan", "website": "https://solartecha.example.com"}
+    payload = {
+        "company_name": "SolarTech Pakistan",
+        "website": "https://solartecha.example.com",
+    }
     research_notes = [
         {
             "external_apollo_firmographics": {
                 "company_name": "SolarTech Pakistan",
                 "estimated_employees": 150,
-                "industry": "Renewable Energy"
+                "industry": "Renewable Energy",
             }
         }
     ]
@@ -30,7 +37,7 @@ async def test_lead_agent_scoring_faithfulness():
     test_case = LLMTestCase(
         input=f"Qualify lead: {payload['company_name']}",
         actual_output=reasoning,
-        retrieval_context=[str(research_notes)]
+        retrieval_context=[str(research_notes)],
     )
 
     # 4. Assert metrics using DeepEval
