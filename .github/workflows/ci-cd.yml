@@ -46,6 +46,9 @@ jobs:
       AUTH0_AUDIENCE: https://api.nexapilot.ai
       # --- JEV / TYPESAFE GUARDRAIL CONFIG ---
       TYPESAFE_API_KEY: test-typesafe-api-key
+      # --- GEMINI / LLM CONFIG ---
+      GOOGLE_API_KEY: dummy-key-for-ci
+      GEMINI_API_KEY: dummy-key-for-ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -53,7 +56,11 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt -r requirements-dev.txt
-      
+
+      # --- PATCH LANGCHAIN.SCHEMA FOR DEEPEVAL COMPATIBILITY ---
+      - name: Patch LangChain (DeepEval Fix)
+        run: python -c "import langchain, pathlib; pathlib.Path(langchain.__file__).with_name('schema.py').write_text('from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage\nfrom langchain_core.documents import Document\nfrom langchain_core.outputs import Generation, LLMResult\n')"
+
       # --- RUN ALEMBIC MIGRATIONS BEFORE TESTS ---
       - name: Run Database Migrations
         run: alembic upgrade head
@@ -95,7 +102,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs
