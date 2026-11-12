@@ -1,42 +1,5 @@
-"""Test fixtures.
-
-Uses an in-memory SQLite database (via aiosqlite) instead of Postgres so the
-test suite has no external dependency for unit/API-level tests. The CI
-workflow additionally runs a real Postgres service container for anything
-that needs Postgres-specific behavior (JSON columns, UUID type, etc.).
-"""
-
+"""Test fixtures."""
 import os
-import sys
-import types
-
-# --- LANGCHAIN 0.3.x DEEPEVAL PATCH ---
-import langchain
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
-from langchain_core.documents import Document
-from langchain_core.outputs import Generation, LLMResult
-
-mock_schema = types.ModuleType("langchain.schema")
-mock_schema.HumanMessage = HumanMessage
-mock_schema.AIMessage = AIMessage
-mock_schema.SystemMessage = SystemMessage
-mock_schema.BaseMessage = BaseMessage
-mock_schema.Document = Document
-mock_schema.Generation = Generation
-mock_schema.LLMResult = LLMResult
-
-# 1. Register in sys.modules for standard imports
-sys.modules["langchain.schema"] = mock_schema
-# 2. Bind to the langchain package for 'from parent import child' syntax
-langchain.schema = mock_schema
-# --------------------------------------
-
-# Set up test environment variables
-os.environ.setdefault("API_KEY", "test-api-key")
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-os.environ.setdefault("GOOGLE_API_KEY", "dummy-key-for-ci")
-os.environ.setdefault("GEMINI_API_KEY", "dummy-key-for-ci")
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -45,6 +8,11 @@ from app.database import session as db_session
 from app.database.session import Base
 from app.main import app
 
+# Set up test environment variables
+os.environ.setdefault("API_KEY", "test-api-key")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("GOOGLE_API_KEY", "dummy-key-for-ci")
+os.environ.setdefault("GEMINI_API_KEY", "dummy-key-for-ci")
 
 @pytest.fixture(autouse=True)
 async def setup_database():
@@ -54,11 +22,8 @@ async def setup_database():
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
     yield
-
     await test_engine.dispose()
-
 
 @pytest.fixture
 async def client():
