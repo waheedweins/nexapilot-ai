@@ -22,12 +22,14 @@ from app.main import app
 
 @pytest.fixture(autouse=True)
 def mock_external_ai_services(monkeypatch):
-    """Intercept all Gemini and DeepEval LLM calls so CI needs no real API keys."""
+    """Use mocks when dummy keys are set; automatically use real APIs when real keys are provided."""
+    google_key = os.environ.get("GOOGLE_API_KEY", "")
+    if google_key and google_key != "dummy-key-for-ci":
+        return  # Original key detected — run live Gemini and DeepEval calls
 
-    # 1. Mock your internal LLM helper (patched at both definition and import sites)
+    # 1. Mock internal LLM helper
     async def fake_call_lite_llm(*args, **kwargs):
         prompt_text = str(args) + str(kwargs)
-        # Return 'cold' when no website/notes are present, otherwise 'warm'
         is_cold = "None" in prompt_text or "no website" in prompt_text.lower()
         tier = "cold" if is_cold else "warm"
         return json.dumps({
@@ -39,7 +41,7 @@ def mock_external_ai_services(monkeypatch):
     monkeypatch.setattr(llm, "call_lite_llm", fake_call_lite_llm)
     monkeypatch.setattr(lead_agent, "call_lite_llm", fake_call_lite_llm)
 
-    # 2. Mock DeepEval's FaithfulnessMetric so it doesn't call OpenAI
+    # 2. Mock DeepEval FaithfulnessMetric
     def fake_measure(self, test_case, *args, **kwargs):
         self.score = 1.0
         self.success = True
