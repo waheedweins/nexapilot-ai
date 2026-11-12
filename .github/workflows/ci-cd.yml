@@ -41,9 +41,6 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://nexapilot:nexapilot@localhost:5432/nexapilot_test
       API_KEY: test-api-key
-      # --- AUTH0 SECURITY CONFIG ---
-      AUTH0_DOMAIN: test-tenant.us.auth0.com
-      AUTH0_AUDIENCE: https://api.nexapilot.ai
       # --- JEV / TYPESAFE GUARDRAIL CONFIG ---
       TYPESAFE_API_KEY: test-typesafe-api-key
       # --- GEMINI / LLM CONFIG ---
